@@ -9,7 +9,7 @@ import base64
 app = Flask(__name__)
 
 # Configurações
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
@@ -281,51 +281,32 @@ def edges_to_plt(edges_image, min_area=20, epsilon_factor=0.005, dpi=300, paper_
     hpgl_commands = []
     
     # Cabeçalho HPGL
-    hpgl_commands.append('IN;')  # Initialize
-    hpgl_commands.append('SP1;')  # Select pen 1
+    hpgl_commands.append("IN;SP1;")  # Initialize, Select Pen 1
+    hpgl_commands.append(f"SC0,{width},0,{height};")  # Scale (pixels)
     
-    # Processar contornos
-    valid_contours = []
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area < min_area:
-            continue
-        
-        # Simplificar contorno
-        epsilon = epsilon_factor * cv2.arcLength(contour, True)
-        simplified = cv2.approxPolyDP(contour, epsilon, True)
-        
-        if len(simplified) < 2:
-            continue
-        
-        valid_contours.append(simplified)
-    
-    # Gerar comandos HPGL para cada contorno
-    for contour in valid_contours:
-        first_point = True
-        for point in contour:
-            x_pixel, y_pixel = point[0]
+    if contours:
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            if area < min_area:
+                continue
             
-            # Converter para HPGL units
-            # Inverter Y porque em imagens Y cresce para baixo, mas em HPGL cresce para cima
-            x_hpgl = int(x_pixel * pixels_to_hpgl)
-            y_hpgl = int((height - y_pixel) * pixels_to_hpgl)
+            epsilon = epsilon_factor * cv2.arcLength(contour, True)
+            simplified = cv2.approxPolyDP(contour, epsilon, True)
             
-            if first_point:
-                # Pen Up (PU) para mover sem desenhar
-                hpgl_commands.append(f'PU{x_hpgl},{y_hpgl};')
-                first_point = False
-            else:
-                # Pen Down (PD) para desenhar
-                hpgl_commands.append(f'PD{x_hpgl},{y_hpgl};')
-        
-        # Pen Up no final do contorno
-        hpgl_commands.append('PU;')
-    
-    # Finalizar
-    hpgl_commands.append('PU0,0;')  # Retornar à origem
-    hpgl_commands.append('SP0;')    # Desselecionar caneta
-    
+            if len(simplified) < 2:
+                continue
+            
+            # Mover para o primeiro ponto e desenhar
+            x, y = simplified[0][0]
+            hpgl_commands.append(f"PU;PA{x},{height-y};PD;")  # Pen Up, Plot Absolute, Pen Down
+            
+            for point in simplified[1:]:
+                x, y = point[0]
+                hpgl_commands.append(f"PA{x},{height-y};")
+            
+            hpgl_commands.append("PU;") # Pen Up after drawing contour
+            
+    hpgl_commands.append("PG;") # Page Eject
     return '\n'.join(hpgl_commands)
 
 
@@ -334,211 +315,54 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/api/upload', methods=['POST'])
-def upload_image():
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
+    
     try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'Arquivo não selecionado'}), 400
-        
-        if not allowed_file(file.filename):
-            return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
-        
         filename = secure_filename(file.filename)
-        timestamp = str(int(__import__('time').time() * 1000))
-        filename = f"{timestamp}_{filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        img = cv2.imread(filepath)
-        preview_base64 = image_to_base64(img)
+        # Parâmetros de processamento da imagem
+        threshold1 = int(request.form.get('threshold1', 50))
+        threshold2 = int(request.form.get('threshold2', 150))
+        blur_size = int(request.form.get('blur_size', 5))
+        iterations = int(request.form.get('iterations', 1))
+        min_area = int(request.form.get('min_area', 20))
+        epsilon_factor = float(request.form.get('epsilon_factor', 0.005))
+        output_format = request.form.get('output_format', 'svg')
+        auto_threshold = request.form.get('auto_threshold') == 'true'
+        auto_contrast = request.form.get('auto_contrast') == 'true'
+        noise_removal = request.form.get('noise_removal') == 'true'
         
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'preview': preview_base64
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/detect-edges', methods=['POST'])
-def detect_edges_endpoint():
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        t1 = int(data.get('threshold1', 50))
-        t2 = int(data.get('threshold2', 150))
-        blur = int(data.get('blur', 5))
-        morph = int(data.get('morph', 1))
-        auto_threshold = data.get('auto_threshold', False)
-        auto_contrast = data.get('auto_contrast', True)
-        noise_removal = data.get('noise_removal', True)
+        edges, original_img = process_image(filepath, threshold1, threshold2, blur_size, iterations,
+                                            auto_threshold, auto_contrast, noise_removal)
         
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            return jsonify({'error': 'Arquivo não encontrado'}), 404
-        
-        edges, _ = process_image(
-            filepath, t1, t2, blur, morph,
-            auto_threshold=auto_threshold,
-            auto_contrast=auto_contrast,
-            noise_removal=noise_removal
-        )
-        edges_base64 = image_to_base64(edges)
-        
-        return jsonify({
-            'success': True,
-            'edges': edges_base64,
-            'width': edges.shape[1],
-            'height': edges.shape[0]
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/convert-svg', methods=['POST'])
-def convert_svg_endpoint():
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        t1 = int(data.get('threshold1', 50))
-        t2 = int(data.get('threshold2', 150))
-        blur = int(data.get('blur', 5))
-        morph = int(data.get('morph', 1))
-        min_area = float(data.get('min_area', 20))
-        epsilon = float(data.get('epsilon', 0.005))
-        auto_threshold = data.get('auto_threshold', False)
-        auto_contrast = data.get('auto_contrast', True)
-        noise_removal = data.get('noise_removal', True)
-        
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        edges, _ = process_image(
-            filepath, t1, t2, blur, morph,
-            auto_threshold=auto_threshold,
-            auto_contrast=auto_contrast,
-            noise_removal=noise_removal
-        )
-        
-        svg_content = edges_to_svg(edges, min_area, epsilon)
-        
-        return jsonify({
-            'success': True,
-            'svg': svg_content
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/convert-plt', methods=['POST'])
-def convert_plt_endpoint():
-    """
-    Endpoint para converter contornos detectados em formato PLT (HPGL).
-    Aceita os mesmos parâmetros de processamento que o SVG.
-    """
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        t1 = int(data.get('threshold1', 50))
-        t2 = int(data.get('threshold2', 150))
-        blur = int(data.get('blur', 5))
-        morph = int(data.get('morph', 1))
-        min_area = float(data.get('min_area', 20))
-        epsilon = float(data.get('epsilon', 0.005))
-        auto_threshold = data.get('auto_threshold', False)
-        auto_contrast = data.get('auto_contrast', True)
-        noise_removal = data.get('noise_removal', True)
-        
-        # Parâmetros específicos para PLT
-        dpi = int(data.get('dpi', 300))
-        paper_width = float(data.get('paper_width_mm', 210))
-        paper_height = float(data.get('paper_height_mm', 297))
-        
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            return jsonify({'error': 'Arquivo não encontrado'}), 404
-        
-        edges, _ = process_image(
-            filepath, t1, t2, blur, morph,
-            auto_threshold=auto_threshold,
-            auto_contrast=auto_contrast,
-            noise_removal=noise_removal
-        )
-        
-        plt_content = edges_to_plt(
-            edges, 
-            min_area, 
-            epsilon,
-            dpi=dpi,
-            paper_width_mm=paper_width,
-            paper_height_mm=paper_height
-        )
-        
-        return jsonify({
-            'success': True,
-            'plt': plt_content
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/download-svg', methods=['POST'])
-def download_svg():
-    try:
-        data = request.get_json()
-        svg_content = data.get('svg')
-        if not svg_content:
-            return jsonify({'error': 'SVG não fornecido'}), 400
-        
-        return send_file(
-            io.BytesIO(svg_content.encode('utf-8')),
-            mimetype='image/svg+xml',
-            as_attachment=True,
-            download_name='laser_cut_ready.svg'
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/download-plt', methods=['POST'])
-def download_plt():
-    """
-    Endpoint para download do arquivo PLT (HPGL).
-    Recebe o conteúdo PLT e retorna como arquivo para download.
-    """
-    try:
-        data = request.get_json()
-        plt_content = data.get('plt')
-        if not plt_content:
-            return jsonify({'error': 'PLT não fornecido'}), 400
-        
-        return send_file(
-            io.BytesIO(plt_content.encode('utf-8')),
-            mimetype='application/x-hpgl',
-            as_attachment=True,
-            download_name='laser_cut_ready.plt'
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/cleanup', methods=['POST'])
-def cleanup():
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        if filename:
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        return jsonify({'success': True})
+        if output_format == 'svg':
+            svg_output = edges_to_svg(edges, min_area, epsilon_factor)
+            response = io.BytesIO(svg_output.encode('utf-8'))
+            return send_file(response, mimetype='image/svg+xml', as_attachment=True, download_name=f'{os.path.splitext(filename)[0]}.svg')
+        elif output_format == 'plt':
+            plt_output = edges_to_plt(edges, min_area, epsilon_factor)
+            response = io.BytesIO(plt_output.encode('utf-8'))
+            return send_file(response, mimetype='application/octet-stream', as_attachment=True, download_name=f'{os.path.splitext(filename)[0]}.plt')
+        else:
+            # Retornar imagem de bordas como PNG para visualização
+            _, buffer = cv2.imencode('.png', edges)
+            img_base64 = base64.b64encode(buffer).decode()
+            return jsonify({'image_base64': f'data:image/png;base64,{img_base64}'})
+            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host=\'0.0.0.0\', port=port, debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
