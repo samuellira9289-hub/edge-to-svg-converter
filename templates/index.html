@@ -3,259 +3,507 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edge to SVG Converter</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Laser Scale Pro - Conversor de Imagem para Laser</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f4f7f6;
+            color: #2c3e50;
+            line-height: 1.6;
+            padding: 20px;
         }
         .container {
-            margin-top: 50px;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px;
         }
-        .form-label {
-            font-weight: bold;
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { color: #1a2a3a; font-size: 28px; margin-bottom: 10px; }
+        .subtitle { color: #7f8c8d; font-size: 16px; }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 40px;
         }
-        .preview-image {
-            max-width: 100%;
-            height: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            margin-top: 15px;
-        }
-        .output-svg-container {
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #e9ecef;
-            overflow: auto;
-            max-height: 400px;
-        }
-        .output-svg-container svg {
-            max-width: 100%;
-            height: auto;
-        }
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            z-index: 1000;
-            justify-content: center;
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #3498db;
+            margin-bottom: 20px;
+            display: flex;
             align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #f0f2f5;
+            padding-bottom: 8px;
+        }
+
+        .upload-zone {
+            border: 3px dashed #dcdde1;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f9f9f9;
+        }
+        .upload-zone:hover { border-color: #3498db; background: #f0f7ff; }
+        
+        .preview-box {
+            margin-top: 25px;
+            display: none;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .preview-box.active { display: block; }
+        img.preview-img { width: 100%; height: auto; display: block; max-height: 550px; object-fit: contain; }
+
+        .controls-panel {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #e1e8ed;
+            position: sticky;
+            top: 20px;
+        }
+        
+        .control-group { margin-bottom: 20px; }
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .val-badge { background: #e1f0fa; color: #3498db; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        
+        input[type="range"] { width: 100%; cursor: pointer; }
+        
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .input-field {
+            display: flex;
             flex-direction: column;
         }
-        .loading-overlay .spinner-border {
-            width: 3rem;
-            height: 3rem;
+        .input-field label { font-size: 12px; margin-bottom: 5px; color: #666; }
+        .input-field input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
         }
-        .loading-overlay p {
+        
+        .scale-info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+        }
+        .scale-info-box strong { color: #2c3e50; }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; transform: translateY(-1px); }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #219150; transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 2px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #f0f7ff; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            display: none;
+        }
+        .alert-info { background: #e1f0fa; color: #2980b9; border: 1px solid #b3d7ef; }
+        .alert-warning { background: #fff4e5; color: #d35400; border: 1px solid #ffe0b2; }
+        .alert-error { background: #fdeaea; color: #c0392b; border: 1px solid #fadbd8; }
+
+        .download-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
             margin-top: 15px;
-            font-size: 1.2rem;
-            color: #333;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .preset-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .btn-preset {
+            padding: 6px 12px;
+            font-size: 11px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-preset:hover { background: #f0f0f0; }
+
+        @media (max-width: 900px) {
+            .main-content { grid-template-columns: 1fr; }
+            .container { padding: 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p>Processando imagem...</p>
-    </div>
 
-    <div class="container">
-        <h1 class="mb-4 text-center">Conversor de Imagem para SVG/PLT (Otimizado para Corte a Laser)</h1>
-        
-        <div class="alert alert-info" role="alert">
-            Esta ferramenta converte imagens rasterizadas (PNG, JPG) em gráficos vetoriais (SVG ou PLT) otimizados para máquinas de corte a laser. Ajuste os parâmetros para obter o melhor resultado para sua aplicação.
-        </div>
+<div class="container">
+    <header>
+        <h1>📐 Laser Scale Pro</h1>
+        <p class="subtitle">Vetorização Profissional com Controle de Escala Real</p>
+    </header>
 
-        <form id="uploadForm" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label for="imageUpload" class="form-label">Selecione uma Imagem (PNG, JPG, GIF, BMP)</label>
-                <input class="form-control" type="file" id="imageUpload" name="file" accept=".png,.jpg,.jpeg,.gif,.bmp" required>
+    <div id="alert" class="alert"></div>
+
+    <div class="main-content">
+        <div class="left-col">
+            <div class="section-title">🖼️ Imagem Escaneada</div>
+            <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <p>Arraste sua imagem ou clique para selecionar (PNG, JPG, JPEG)</p>
+                <input type="file" id="fileInput" hidden accept="image/*">
+            </div>
+            
+            <div class="preview-box" id="previewBox">
+                <img id="imgPreview" class="preview-img">
             </div>
 
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="threshold1" class="form-label">Threshold Canny 1 (min): <span id="threshold1Value">50</span></label>
-                    <input type="range" class="form-range" id="threshold1" name="threshold1" min="0" max="255" value="50">
+            <div id="resultsArea" style="display: none; margin-top: 30px;">
+                <div class="section-title">🔍 Visualização de Bordas</div>
+                <div class="preview-box active">
+                    <img id="edgesPreview" class="preview-img">
                 </div>
-                <div class="col-md-6">
-                    <label for="threshold2" class="form-label">Threshold Canny 2 (max): <span id="threshold2Value">150</span></label>
-                    <input type="range" class="form-range" id="threshold2" name="threshold2" min="0" max="255" value="150">
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="blur_size" class="form-label">Tamanho do Desfoque Gaussiano (ímpar): <span id="blur_sizeValue">5</span></label>
-                    <input type="range" class="form-range" id="blur_size" name="blur_size" min="0" max="21" step="2" value="5">
-                </div>
-                <div class="col-md-6">
-                    <label for="iterations" class="form-label">Iterações Morfológicas (unir bordas): <span id="iterationsValue">1</span></label>
-                    <input type="range" class="form-range" id="iterations" name="iterations" min="0" max="5" value="1">
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="min_area" class="form-label">Área Mínima do Contorno (pixels): <span id="min_areaValue">20</span></label>
-                    <input type="range" class="form-range" id="min_area" name="min_area" min="0" max="500" value="20">
-                </div>
-                <div class="col-md-6">
-                    <label for="epsilon_factor" class="form-label">Fator de Suavização (Douglas-Peucker): <span id="epsilon_factorValue">0.005</span></label>
-                    <input type="range" class="form-range" id="epsilon_factor" name="epsilon_factor" min="0.001" max="0.1" step="0.001" value="0.005">
-                </div>
-            </div>
-
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="auto_threshold" name="auto_threshold" checked>
-                <label class="form-check-label" for="auto_threshold">Threshold Automático (Otsu)</label>
-            </div>
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="auto_contrast" name="auto_contrast" checked>
-                <label class="form-check-label" for="auto_contrast">Melhorar Contraste Automaticamente (CLAHE)</label>
-            </div>
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="noise_removal" name="noise_removal" checked>
-                <label class="form-check-label" for="noise_removal">Remoção de Ruído (Filtro Bilateral)</label>
-            </div>
-
-            <div class="mb-3">
-                <label for="output_format" class="form-label">Formato de Saída</label>
-                <select class="form-select" id="output_format" name="output_format">
-                    <option value="svg" selected>SVG (Scalable Vector Graphics)</option>
-                    <option value="plt">PLT (HPGL - Hewlett-Packard Graphics Language)</option>
-                    <option value="preview">Pré-visualização (PNG)</option>
-                </select>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">Processar Imagem</button>
-        </form>
-
-        <div id="result" class="mt-4" style="display: none;">
-            <h3 class="text-center">Resultado</h3>
-            <div id="imagePreviewContainer" class="text-center" style="display: none;">
-                <h4>Pré-visualização das Bordas</h4>
-                <img id="imagePreview" class="preview-image" src="" alt="Pré-visualização das Bordas">
-            </div>
-            <div id="svgOutputContainer" class="output-svg-container" style="display: none;">
-                <h4>SVG Gerado</h4>
-                <div id="svgOutput"></div>
-            </div>
-            <div id="downloadLinks" class="mt-3 text-center" style="display: none;">
-                <a id="downloadSvgLink" class="btn btn-success me-2" href="#" download="">Baixar SVG</a>
-                <a id="downloadPltLink" class="btn btn-success" href="#" download="">Baixar PLT</a>
             </div>
         </div>
 
-        <div id="errorAlert" class="alert alert-danger mt-4" style="display: none;" role="alert">
-            <strong>Erro:</strong> <span id="errorMessage"></span>
-        </div>
-    </div>
+        <div class="right-col">
+            <div class="controls-panel">
+                <div id="scaleSection" style="display: none;">
+                    <div class="section-title">📐 Controle de Escala</div>
+                    
+                    <div class="scale-info-box" id="detectedScaleInfo">
+                        Detectando DPI...
+                    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const uploadForm = document.getElementById("uploadForm");
-            const resultDiv = document.getElementById("result");
-            const imagePreviewContainer = document.getElementById("imagePreviewContainer");
-            const imagePreview = document.getElementById("imagePreview");
-            const svgOutputContainer = document.getElementById("svgOutputContainer");
-            const svgOutput = document.getElementById("svgOutput");
-            const downloadLinks = document.getElementById("downloadLinks");
-            const downloadSvgLink = document.getElementById("downloadSvgLink");
-            const downloadPltLink = document.getElementById("downloadPltLink");
-            const errorAlert = document.getElementById("errorAlert");
-            const errorMessage = document.getElementById("errorMessage");
-            const loadingOverlay = document.getElementById("loadingOverlay");
+                    <div class="preset-buttons">
+                        <button class="btn-preset" onclick="setPreset(210, 297)">A4 (210x297)</button>
+                        <button class="btn-preset" onclick="setPreset(297, 420)">A3 (297x420)</button>
+                        <button class="btn-preset" onclick="setPreset(null, null)">Reset</button>
+                    </div>
 
-            // Range sliders value display
-            document.querySelectorAll("input[type=\'range\']").forEach(slider => {
-                const valueSpan = document.getElementById(slider.id + "Value");
-                if (valueSpan) {
-                    slider.addEventListener("input", () => {
-                        valueSpan.textContent = slider.value;
-                    });
-                }
-            });
+                    <div class="input-row">
+                        <div class="input-field">
+                            <label>Largura (mm)</label>
+                            <input type="number" id="targetWidth" step="0.1">
+                        </div>
+                        <div class="input-field">
+                            <label>Altura (mm)</label>
+                            <input type="number" id="targetHeight" step="0.1">
+                        </div>
+                    </div>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="keepAspect" checked>
+                        <label for="keepAspect">Manter Proporção</label>
+                    </div>
 
-            uploadForm.addEventListener("submit", async function(event) {
-                event.preventDefault();
-                loadingOverlay.style.display = "flex";
-                resultDiv.style.display = "none";
-                errorAlert.style.display = "none";
+                    <div class="alert alert-warning" id="scaleWarning" style="display: block; margin-bottom: 15px; padding: 10px;">
+                        ⚠️ Confirme o tamanho real da peça antes de gerar o arquivo.
+                    </div>
+                </div>
 
-                const formData = new FormData(uploadForm);
+                <div class="section-title">⚙️ Processamento</div>
                 
-                // Adicionar o estado dos checkboxes
-                formData.append("auto_threshold", document.getElementById("auto_threshold").checked);
-                formData.append("auto_contrast", document.getElementById("auto_contrast").checked);
-                formData.append("noise_removal", document.getElementById("noise_removal").checked);
+                <button class="btn btn-success" id="btnAutoMode">Modo Automático (Recomendado)</button>
+                
+                <div id="manualControls">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="autoThreshold" checked>
+                        <label for="autoThreshold">Threshold Automático</label>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Limpeza de Ruído <span class="val-badge" id="morphVal">1</span></label>
+                        <input type="range" id="morph" min="0" max="5" value="1">
+                    </div>
 
-                try {
-                    const response = await fetch("/upload", {
-                        method: "POST",
-                        body: formData,
-                    });
+                    <div class="control-group">
+                        <label>Suavização (Epsilon) <span class="val-badge" id="epsVal">0.005</span></label>
+                        <input type="range" id="epsilon" min="0.001" max="0.05" step="0.001" value="0.005">
+                    </div>
+                </div>
 
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || "Erro desconhecido no servidor");
-                    }
+                <button class="btn btn-primary" id="btnProcess" disabled>Atualizar Preview</button>
+                
+                <div id="downloadArea" style="display: none;">
+                    <div class="section-title">📥 Exportar com Escala Real</div>
+                    <div class="download-group">
+                        <button class="btn btn-success" onclick="generateAndDownload('svg')">Exportar SVG</button>
+                        <button class="btn btn-outline" onclick="generateAndDownload('plt')">Exportar PLT</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    const outputFormat = document.getElementById("output_format").value;
+<script>
+    let currentFile = null;
+    let originalInfo = null;
+    let isProcessing = false;
 
-                    if (outputFormat === "preview") {
-                        const data = await response.json();
-                        if (data.image_base64) {
-                            imagePreview.src = data.image_base64;
-                            imagePreviewContainer.style.display = "block";
-                            svgOutputContainer.style.display = "none";
-                            downloadLinks.style.display = "none";
-                        } else {
-                            throw new Error("Resposta de pré-visualização inválida.");
-                        }
-                    } else if (outputFormat === "svg") {
-                        const svgText = await response.text();
-                        svgOutput.innerHTML = svgText;
-                        imagePreviewContainer.style.display = "none";
-                        svgOutputContainer.style.display = "block";
-                        downloadLinks.style.display = "block";
-                        downloadSvgLink.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
-                        downloadSvgLink.style.display = "inline-block";
-                        downloadPltLink.style.display = "none";
-                    } else if (outputFormat === "plt") {
-                        const pltText = await response.text();
-                        // Para PLT, não há pré-visualização direta no navegador, apenas download
-                        imagePreviewContainer.style.display = "none";
-                        svgOutputContainer.style.display = "none";
-                        downloadLinks.style.display = "block";
-                        downloadPltLink.href = "data:application/octet-stream;charset=utf-8," + encodeURIComponent(pltText);
-                        downloadPltLink.style.display = "inline-block";
-                        downloadSvgLink.style.display = "none";
-                    }
+    // Elementos
+    const fileInput = document.getElementById('fileInput');
+    const imgPreview = document.getElementById('imgPreview');
+    const edgesPreview = document.getElementById('edgesPreview');
+    const btnProcess = document.getElementById('btnProcess');
+    const btnAutoMode = document.getElementById('btnAutoMode');
+    const targetWidth = document.getElementById('targetWidth');
+    const targetHeight = document.getElementById('targetHeight');
+    const keepAspect = document.getElementById('keepAspect');
 
-                    resultDiv.style.display = "block";
+    // Event Listeners
+    fileInput.onchange = e => {
+        if (e.target.files[0]) uploadFile(e.target.files[0]);
+    };
 
-                } catch (error) {
-                    errorMessage.textContent = error.message;
-                    errorAlert.style.display = "block";
-                    resultDiv.style.display = "none";
-                } finally {
-                    loadingOverlay.style.display = "none";
-                }
+    targetWidth.oninput = () => {
+        if (keepAspect.checked && originalInfo) {
+            const ratio = originalInfo.height_px / originalInfo.width_px;
+            targetHeight.value = (targetWidth.value * ratio).toFixed(2);
+        }
+    };
+
+    targetHeight.oninput = () => {
+        if (keepAspect.checked && originalInfo) {
+            const ratio = originalInfo.width_px / originalInfo.height_px;
+            targetWidth.value = (targetHeight.value * ratio).toFixed(2);
+        }
+    };
+
+    document.getElementById('morph').oninput = e => {
+        document.getElementById('morphVal').innerText = e.target.value;
+    };
+
+    document.getElementById('epsilon').oninput = e => {
+        document.getElementById('epsVal').innerText = e.target.value;
+    };
+
+    btnProcess.onclick = () => processEdges();
+    btnAutoMode.onclick = () => runAutoMode();
+
+    async function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        showAlert('Enviando imagem...', 'info');
+        
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (data.success) {
+                currentFile = data.filename;
+                originalInfo = data.info;
+                
+                imgPreview.src = data.preview;
+                document.getElementById('previewBox').classList.add('active');
+                document.getElementById('scaleSection').style.display = 'block';
+                
+                // Preencher campos de escala
+                targetWidth.value = data.info.width_mm;
+                targetHeight.value = data.info.height_mm;
+                
+                document.getElementById('detectedScaleInfo').innerHTML = 
+                    `<strong>Tamanho detectado:</strong> ${data.info.width_mm} x ${data.info.height_mm} mm<br>` +
+                    `<strong>Resolução:</strong> ${data.info.dpi} DPI`;
+                
+                btnProcess.disabled = false;
+                showAlert('Imagem carregada com sucesso!', 'info');
+            } else {
+                showAlert(data.error, 'error');
+            }
+        } catch (err) {
+            showAlert('Erro no upload: ' + err.message, 'error');
+        }
+    }
+
+    async function processEdges() {
+        if (!currentFile || isProcessing) return;
+        isProcessing = true;
+        btnProcess.innerHTML = '<span class="loader"></span> Processando...';
+        
+        try {
+            const res = await fetch('/api/detect-edges', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: currentFile,
+                    morph: document.getElementById('morph').value,
+                    auto_threshold: document.getElementById('autoThreshold').checked
+                })
             });
-        });
-    </script>
+            const data = await res.json();
+            
+            if (data.success) {
+                edgesPreview.src = data.edges;
+                document.getElementById('resultsArea').style.display = 'block';
+                document.getElementById('downloadArea').style.display = 'block';
+                edgesPreview.scrollIntoView({ behavior: 'smooth' });
+            }
+        } catch (err) {
+            showAlert('Erro no processamento: ' + err.message, 'error');
+        } finally {
+            isProcessing = false;
+            btnProcess.innerText = 'Atualizar Preview';
+        }
+    }
+
+    async function runAutoMode() {
+        if (!currentFile) return showAlert('Suba uma imagem primeiro', 'error');
+        
+        // Resetar para valores ideais automáticos
+        document.getElementById('autoThreshold').checked = true;
+        document.getElementById('morph').value = 1;
+        document.getElementById('morphVal').innerText = "1";
+        
+        await processEdges();
+        showAlert('Modo automático aplicado com sucesso!', 'info');
+    }
+
+    async function generateAndDownload(format) {
+        if (!currentFile) return;
+        
+        showAlert(`Gerando arquivo ${format.toUpperCase()}...`, 'info');
+        
+        try {
+            const res = await fetch('/api/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: currentFile,
+                    format: format,
+                    width_mm: targetWidth.value,
+                    height_mm: targetHeight.value,
+                    morph: document.getElementById('morph').value,
+                    epsilon: document.getElementById('epsilon').value,
+                    auto_threshold: document.getElementById('autoThreshold').checked
+                })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                // Chamar o endpoint de download real
+                const dlRes = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: data.content,
+                        filename: data.filename
+                    })
+                });
+                
+                const blob = await dlRes.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = data.filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showAlert(`Arquivo ${format.toUpperCase()} baixado com sucesso!`, 'info');
+            }
+        } catch (err) {
+            showAlert('Erro ao exportar: ' + err.message, 'error');
+        }
+    }
+
+    function setPreset(w, h) {
+        if (!originalInfo) return;
+        if (w === null) {
+            targetWidth.value = originalInfo.width_mm;
+            targetHeight.value = originalInfo.height_mm;
+        } else {
+            targetWidth.value = w;
+            targetHeight.value = h;
+        }
+        // Disparar atualização se necessário (embora o usuário vá ver o valor)
+    }
+
+    function showAlert(msg, type) {
+        const alert = document.getElementById('alert');
+        alert.innerText = msg;
+        alert.className = `alert alert-${type}`;
+        alert.style.display = 'block';
+        setTimeout(() => { alert.style.display = 'none'; }, 5000);
+    }
+
+    // Drag and Drop
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
+        dropZone.addEventListener(name, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', e => {
+        const dt = e.dataTransfer;
+        const file = dt.files[0];
+        if (file) uploadFile(file);
+    });
+</script>
+
 </body>
 </html>
